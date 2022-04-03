@@ -1,30 +1,38 @@
 {
   "name": "twitch-now",
-  "version": "0.0.0",
-  "description": "Twitch now chrome extension:   https://chrome.google.com/webstore/detail/twitch-now/nlmbdmpjmlijibeockamioakdpmhjnpk",
-  "main": "Gruntfile.js",
+  "version": "1.1.216",
+  "description": "* Chrome version: https://chrome.google.com/webstore/detail/twitch-now/nlmbdmpjmlijibeockamioakdpmhjnpk * Firefox version: https://docs.google.com/file/d/0BykW-NfUUzm5Z2RCWmcxTmQ5cEk * Opera version: https://addons.opera.com/extensions/details/twitch-now/",
   "dependencies": {
-    "grunt": "~0.4.2"
+    "semver": "^7.3.2",
+    "through2": "^2.0.5"
   },
   "devDependencies": {
-    "grunt-contrib-clean": "^0.5.0",
-    "grunt-contrib-compress": "^0.9.1",
-    "grunt-contrib-concat": "^0.4.0",
-    "grunt-contrib-copy": "^0.5.0",
-    "grunt-contrib-handlebars": "^0.8.0",
-    "grunt-contrib-watch": "^0.6.1",
-    "grunt-mozilla-addon-sdk": "^0.3.2",
-    "grunt-version": "^0.3.0"
+    "del": "^2.1.0",
+    "gulp": "^4.0.2",
+    "gulp-bump": "^1.0.0",
+    "gulp-concat": "^2.6.0",
+    "gulp-declare": "^0.3.0",
+    "gulp-handlebars": "^5.0.2",
+    "gulp-jshint": "^2.1.0",
+    "gulp-shell": "^0.5.1",
+    "gulp-strip-debug": "^3.0.0",
+    "gulp-util": "^3.0.7",
+    "gulp-wrap": "^0.15.0",
+    "gulp-zip": "^3.0.2",
+    "jshint": "^2.10.3",
+    "merge-stream": "^1.0.0",
+    "request": "^2.88.0",
+    "run-sequence": "^1.1.4"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/Ndragomirov/twitch-now.git"
+    "url": "https://github.com/Ndragomirov/twitch-now"
   },
   "author": "",
-  "license": "BSD",
+  "license": "ISC",
   "bugs": {
     "url": "https://github.com/Ndragomirov/twitch-now/issues"
   },

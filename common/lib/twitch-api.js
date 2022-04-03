@@ -1,232 +1,232 @@
-(function (w){
+(function (){
   "use strict";
 
-  var isFirefox = self && self.port && self.port.emit;
+  var root = this;
 
-  var that = w.twitchApi = _.extend({}, Backbone.Events);
+  var TwitchApi = root.TwitchApi = function (clientId){
+    if ( !clientId ) throw new Error("clientId is required");
+    this.basePath = "https://api.twitch.tv/kraken";
+    this.userName = "";
+    this.userId = "";
+    this.clientId = clientId;
+    this.timeout = 10 * 1000;
+    this.token = "";
+    _.extend(this, Backbone.Events);
+    this.listen();
+  }
 
-  that.basePath = "https://api.twitch.tv/kraken";
-  that.userName = "";
+  TwitchApi.prototype.isAuthorized = function (){
+    return !!this.token;
+  }
 
-  var token;
+  TwitchApi.prototype.authorize = function (){
+    twitchOauth.authorize(function (){
+    })
+  }
 
-  var providerOpts = {
-    api          : "https://api.twitch.tv/kraken/oauth2/authorize",
-    response_type: 'code',
-    client_id    : 'b4sj5euottb8mm7pc1lfvi84kvzxqxk',
-    client_secret: '2m42qpmxfy5l2ik4c93s0qco4vzfgr0',
-    api_scope    : 'user_follows_edit user_read',
-    redirect_uri : 'http://ndragomirov.github.io/twitch.html'
-  };
-
-  that.listen = function (){
-    if ( isFirefox ) {
-      self.port.on("OAUTH2_TOKEN", function (accessToken){
-        token = accessToken;
-        if ( token ) {
-          that.trigger("authorize");
-        }
-      })
-      self.port.emit("OAUTH2_TOKEN");
-    } else {
-
-      chrome.runtime.onMessage.addListener(function (msg){
-        if ( msg.id == "OAUTH2_TOKEN" ) {
-          token = msg.value;
-          if ( token ) {
-            that.trigger("authorize");
-          }
-        }
-      })
-
-      chrome.runtime.sendMessage({id: "OAUTH2_TOKEN_GET"});
+  TwitchApi.prototype.revoke = function (){
+    if ( this.token && this.token.length > 0 ) {
+      twitchOauth.clearAccessToken();
     }
   }
 
-  that.listen();
-
-  that.getRequestParams = function (){
+  TwitchApi.prototype.getRequestParams = function (){
     return {
-      timeout : 10 * 1000,
+      timeout : this.timeout,
       dataType: "json",
       headers : {
-        "Accept"       : "application/vnd.twitchtv.v2+json",
-        "Client-ID"    : providerOpts.client_id,
-        "Authorization": " OAuth " + token
+        "Accept"       : "application/vnd.twitchtv.v5+json",
+        "Client-ID"    : this.clientId,
+        "Authorization": " OAuth " + this.token
       }
-    };
+    }
   }
 
-  that.revoke = function (){
-    if ( isFirefox ) {
-      self.port.emit("OAUTH2_REVOKE");
-    } else {
-      chrome.runtime.sendMessage({id: "OAUTH2_REVOKE"});
+  TwitchApi.prototype.listen = function (){
+
+    var _self = this;
+
+    this.on("tokenchange", function (accessToken){
+      _self.token = accessToken;
+      if ( accessToken ) {
+        _self.trigger("authorize");
+      } else {
+        _self.userName = "";
+        _self.trigger("revoke");
+      }
+    });
+
+    twitchOauth.on("OAUTH2_TOKEN", function (){
+      _self.trigger("tokenchange", twitchOauth.getAccessToken());
+    })
+  }
+
+  function encode(o){
+    var r = [];
+    for ( var i in o ) {
+      if ( o.hasOwnProperty(i) ) {
+        r.push(encodeURIComponent(i) + '=' + encodeURIComponent(o[i]));
+      }
     }
-    console.log("revoking");
-    that.userName = "";
-    that.trigger("revoke");
-  };
+    return r.join('&');
+  }
 
-  that.isAuthorized = function (){
-    return !!token;
-  };
-
-  that.getUserName = function (cb){
-    var userName = that.userName;
-    var errMessage = "cant get current username";
-    var req = {
-      url: that.basePath + "/"
-    };
+  TwitchApi.prototype.getUserName = function (cb){
+    var _self = this
+      , userName = _self.userName
+      , err = {
+        err: "cant get current username"
+      }
+      , req = {
+        url: _self.basePath + "/"
+      }
+      ;
     if ( userName ) return cb(null, userName);
 
-    $.ajax($.extend(true, req, that.getRequestParams()))
-      .fail(function (){
-        return cb(errMessage);
+    $.ajax($.extend(true, req, _self.getRequestParams()))
+      .fail(function (xhr){
+        if ( xhr.status == 401 ) {
+          _self.revoke();
+        }
+        return cb(err);
       })
       .done(function (res){
         if ( !res.token.user_name ) {
-          that.revoke();
-          return cb(errMessage);
+          return cb(err);
         }
-        that.userName = userName = res.token.user_name;
+        _self.userId = res.token.user_id;
+        _self.userName = userName = res.token.user_name;
         return cb(null, userName);
       });
-  };
+  }
 
-  that.authorize = function (){
+  TwitchApi.prototype.send = function (methodName, opts, cb){
+    var _self = this;
 
-    if ( isFirefox ) {
-      self.port.emit("OAUTH2_AUTH");
-    } else {
-      chrome.runtime.sendMessage({id: "OAUTH2_AUTH"});
-    }
-  };
-
-  that.getFollowed = function (cb){
-    var reqCompleted = 0;
-    var totalRequests = 4;
-    var errors = 0;
-
-    var liveStreams = [];
-
-    var callback = function (err){
-      reqCompleted++;
-      if ( err ) errors++;
-      if ( reqCompleted == totalRequests ) {
-        if ( err > 0 ) {
-          return cb("err");
-        } else {
-          return cb(null, {streams: liveStreams});
-        }
-      }
-    }
-
-    var getLiveStreams = function (res){
-      return res.streams.filter(function (s){
-        return s.hasOwnProperty("viewers");
-      });
-    }
-
-    var getChannelIds = function (res){
-      return res.follows.map(function (c){
-        return c.channel.name;
-      });
-    }
-
-    for ( var i = 0; i < totalRequests; i++ ) {
-      var offset = i * 100;
-
-      that.send("follows", {limit: 100, offset: offset}, function (err, res){
-        if ( err ) return callback(err);
-        var channels = getChannelIds(res);
-        if ( channels == 0 ) return callback();
-
-        that.send("streams", {limit: 100, channel: channels.join(",")}, function (err, res){
-          if ( err ) return callback(err);
-          liveStreams = liveStreams.concat(getLiveStreams(res));
-          callback();
-        });
-      });
-    }
-  };
-
-  that.send = function (methodName, opts, cb){
-
-    var requestOpts = that[methodName]();
+    var requestOpts = _self.methods[methodName]();
 
     var getUserName = requestOpts.url.match(/:user/) ?
-      that.getUserName :
+      _self.getUserName :
       function (fn){
-        return fn()
-      };
+        return fn();
+      }
 
-    if ( requestOpts.url.match(/:target/) ) {
-      requestOpts.url = requestOpts.url.replace(/:target/, opts.target);
-    }
-
-    if ( requestOpts.url.match(/:channel/) ) {
-      requestOpts.url = requestOpts.url.replace(/:channel/, opts.channel);
-    }
-
-    getUserName(function (err, userName){
-      cb = cb || $.noop;
-      if ( err ) return cb(err);
-      requestOpts.url = that.basePath + requestOpts.url;
-      requestOpts.url = requestOpts.url.replace(/:user/, userName);
-      requestOpts = $.extend(true, requestOpts, {data: opts}, that.getRequestParams());
-//      console.log(requestOpts);
-      $.ajax(requestOpts)
-        .done(function (data){
-          that.trigger("done:" + methodName);
-          cb(null, data);
-        })
-        .fail(function (xhr){
-          console.log("\nStatus = ", xhr.status);
-          //a workaround solution for twitch followed bug
-          if ( xhr.status == 404 && methodName == "followed" ) {
-            return that.getFollowed(cb);
-          }
-          if ( xhr.status == 401 ) {
-            if ( token && token.length > 0) {
-              that.revoke();
-            }
-          }
-          that.trigger("fail:" + methodName);
-          cb({err: "err" + methodName, status: xhr.status});
-        })
+    requestOpts.url = requestOpts.url.replace(/:(\w+)/g, function (substr, match){
+      return opts[match] || ":" + match;
     });
 
-  };
+    getUserName.call(_self, function (err, userName){
+      cb = cb || $.noop;
+      if ( err ) return cb(err);
 
-  that.base = function (){
+      //rewrite basePath if full url provided by requestOpts
+      requestOpts.url = /^http/.exec(requestOpts.url) ? requestOpts.url : _self.basePath + requestOpts.url;
+      requestOpts.url = requestOpts.url.replace(/:user_name/, userName);
+      requestOpts.url = requestOpts.url.replace(/:user_id/, _self.userId);
+      requestOpts = $.extend(true, requestOpts, {data: opts}, _self.getRequestParams());
+
+      var url = new URL(requestOpts.url);
+
+      if ( requestOpts.type == "GET" && requestOpts.data ) {
+        Object
+          .keys(requestOpts.data)
+          .forEach(function(key) {
+            return url.searchParams.append(key, requestOpts.data[key]);
+          });
+      }
+
+      var _h = new Headers();
+      for ( var i in requestOpts.headers ) {
+        _h.append(i, requestOpts.headers[i]);
+      }
+
+      var _ropts = {
+        method  : requestOpts.type,
+        headers : _h,
+        redirect: 'follow',
+      }
+      if ( requestOpts.type != "GET" && requestOpts.type != "HEAD" ) {
+        if ( requestOpts.data ) {
+          _ropts.headers.append('Content-Type', 'application/x-www-form-urlencoded; charset=utf-8');
+          _ropts.body = encode(requestOpts.data);
+        }
+      }
+
+      var _r = new Request(url, _ropts);
+
+      fetch(_r).then(function (res){
+        console.log(res.body);
+        if ( res.status == 204 ) {
+          _self.trigger("done:" + methodName);
+          return cb(null, res);
+        }
+        res.json().then(function (data){
+
+          if ( /^(streams|searchStreams|followed)$/.test(methodName) ) {
+            if ( data.streams && data.streams.length ) {
+              data.streams = data.streams.map(function (s){
+                if ( s.preview && typeof s.preview == "string" ) {
+                  var medium = s.preview;
+                  s.preview = {
+                    medium: medium
+                  }
+                }
+                return s;
+              })
+            }
+          }
+          _self.trigger("done:" + methodName);
+          cb(null, data);
+        })
+      })
+        .catch(function (res){
+          _self.trigger("fail:" + methodName);
+          cb({err: "err" + methodName, status: res.status});
+        })
+    });
+  }
+
+  var methods = TwitchApi.prototype.methods = {};
+
+  methods.base = function (){
     return {
       type: "GET",
       url : "/"
     }
-  };
+  }
 
-  that.authUser = function (){
-    return {
-      type: "GET"
-    }
-  };
-
-  that.user = function (){
+  methods.user = function (){
     return {
       type: "GET",
       url : "/user"
     }
-  };
+  }
 
-  that.channelVideos = function (){
+  methods.gameVideos = function (){
+    return {
+      type: "GET",
+      url : "/videos/top"
+    }
+  }
+
+  methods.channelVideos = function (){
     return {
       type: "GET",
       url : "/channels/:channel/videos"
     }
-  };
+  }
 
-  that.searchStreams = function (){
+  methods.searchGames = function (){
+    return {
+      type: "GET",
+      url : "/search/games",
+      data: {
+        limit: 50
+      }
+    }
+  }
+
+  methods.searchStreams = function (){
     return {
       type: "GET",
       url : "/search/streams",
@@ -234,56 +234,97 @@
         limit: 50
       }
     }
-  };
+  }
 
-  that.gamesTop = function (){
+  methods.gamesTop = function (){
     return {
       type: "GET",
       url : "/games/top",
       data: {
-        limit: 50
+        limit: 40
       }
     }
-  };
+  }
 
-  that.follows = function (){
-    return {
-      type : "GET",
-      url  : "/users/:user/follows/channels",
-      limit: 100
-    }
-  };
-
-  that.follow = function (){
-    return {
-      type: "PUT",
-      url : "/users/:user/follows/channels/:target"
-    }
-  };
-
-  that.unfollow = function (){
-    return {
-      type: "DELETE",
-      url : "/users/:user/follows/channels/:target"
-    }
-  };
-
-  that.followed = function (){
+  methods.follows = function (){
     return {
       type: "GET",
-      url : "/streams/followed",
+      url : "/users/:user_id/follows/channels",
       data: {
         limit: 100
       }
     }
-  };
+  }
 
-  that.streams = function (){
+  methods.hosts = function (){
     return {
-      type : "GET",
-      url  : "/streams",
-      limit: 50
+      type: "GET",
+      url : "https://api.twitch.tv/api/users/:user_name/followed/hosting",
+      data: {
+        limit: 100
+      }
     }
-  };
+  }
 
-})(this);
+  methods.followedgames = function (){
+    return {
+      type: "GET",
+      url : "https://api.twitch.tv/kraken/users/:user_id/follows/games",
+      data: {
+        limit: 100
+      }
+    }
+  }
+
+  methods.gameFollow = function (){
+    return {
+      type: "PUT",
+      url : "https://api.twitch.tv/api/users/:user_name/follows/games/follow"
+    }
+  }
+
+  methods.gameUnfollow = function (){
+    return {
+      type: "DELETE",
+      url : "https://api.twitch.tv/api/users/:user_name/follows/games/unfollow"
+    }
+  }
+
+  methods.follow = function (){
+    return {
+      type: "PUT",
+      url : "/users/:user_id/follows/channels/:target"
+    }
+  }
+
+  methods.unfollow = function (){
+    return {
+      type: "DELETE",
+      url : "/users/:user_id/follows/channels/:target"
+    }
+  }
+
+  methods.followed = function (){
+    return {
+      type: "GET",
+      url : "/streams/followed",
+      data: {
+        limit: 100,
+        stream_type	: "all"
+      }
+    }
+  }
+
+  methods.streams = function (){
+    return {
+      type: "GET",
+      url : "/streams",
+      data: {
+        limit: 50
+      }
+    }
+  }
+
+  root.twitchApi = new TwitchApi(utils.getConstants().twitchApi.client_id);
+
+}).call(this);

@@ -5,6 +5,9 @@
     , FIREFOX = "firefox"
     ;
 
+  var isFirefox = !!root.browser;
+  var _browser = chrome;
+
   var that = {};
 
   var detectRealBrowser = function (){
@@ -23,124 +26,74 @@
 
   var rbrowser = that.rbrowser = detectRealBrowser();
 
-  var detectBrowser = function (){
-    if ( typeof root.chrome == "undefined" ) {
-      return FIREFOX;
-    }
-    return CHROME;
-  }
-
-  var browser = that.browser = detectBrowser();
-
   var _tabs = that.tabs = {};
 
   _tabs.create = function (opts){
-    if ( browser == CHROME ) {
-      chrome.tabs.create({url: opts.url});
-    }
-    if ( browser == FIREFOX ) {
-      self.port.emit("twitchnow", {command: "tabs.create", value: opts});
-    }
+    _browser.tabs.create({url: opts.url});
+  }
+
+  _tabs.update = function (tabId, opts){
+    _browser.tabs.update(tabId, opts);
+  }
+
+  _tabs.query = function (opts, callback){
+    _browser.tabs.query(opts, callback);
   }
 
   var _windows = that.windows = {};
 
   _windows.create = function (opts){
-    if ( browser == CHROME ) {
-      chrome.windows.create({url: opts.url, type: "popup", focused: true });
+    var defaults = {url: opts.url, type: "popup"};
+    if ( !isFirefox ) {
+      defaults.focused = true;
     }
-    if ( browser == FIREFOX ) {
-      self.port.emit("twitchnow", {command: "windows.create", value: {url: opts.url}});
-    }
+    _browser.windows.create(defaults);
   }
 
   var _browserAction = that.browserAction = {};
 
   _browserAction.setBadgeText = function (opts){
-    if ( browser == CHROME ) {
-      chrome.browserAction.setBadgeText({
-        text: opts.text
-      })
-    }
-    if ( browser == FIREFOX ) {
-//      throw new Error("Not Implemented");
-    }
+    _browser.browserAction.setBadgeText({
+      text: opts.text
+    })
+  }
+
+  _browserAction.setBadgeBackgroundColor = function(color){
+    _browser.browserAction.setBadgeBackgroundColor(color);
   }
 
   var _i18n = that.i18n = {};
 
   _i18n.getMessage = function (id){
-    if ( browser == CHROME ) {
-      return chrome.i18n.getMessage(id);
-    }
-    if ( browser == FIREFOX ) {
-      if ( self.options.messages[id] ) {
-        return self.options.messages[id].message;
-      }
-      if ( self.options.defaultMessages[id] ) {
-        return self.options.defaultMessages[id].message;
-      }
-    }
+    return _browser.i18n.getMessage(id);
   }
 
   var _runtime = that.runtime = {};
 
   _runtime.getURL = function (str){
-    if ( browser == CHROME ) {
-      return chrome.runtime.getURL(str);
-    }
-    if ( browser == FIREFOX ) {
-      return self.options.dataURL + str;
-    }
+    return _browser.runtime.getURL(str);
   }
 
   _runtime.getVersion = function (){
-    if ( browser == CHROME ) {
-      chrome.runtime.getManifest().version;
-    } else {
-      return self.options.version;
-    }
+    _browser.runtime.getManifest().version;
   }
 
   _runtime.sendMessage = function (type, args){
-    if ( browser == CHROME ) {
-      chrome.runtime.sendMessage({type: type, args: args});
-    }
-    if ( browser == FIREFOX ) {
-      self.port.emit(type, args);
-    }
+    _browser.runtime.sendMessage({type: type, args: args});
   }
 
   var notifications = that.notifications = {};
 
-  notifications.create = function (opts){
-    if ( browser == FIREFOX ) {
-      self.port.emit("twitchnow", {command: "notifications.create", value: opts});
-    }
-  }
-
   notifications.richNotificationsSupported = function (){
-    if ( browser == CHROME ) {
-      return chrome.notifications && chrome.notifications.create;
-    }
-  }
-
-  notifications.growlNotificationsSupported = function (){
-    return browser == FIREFOX;
-  }
-
-  notifications.htmlNotificationsSupported = function (){
-    if ( browser == CHROME ) {
-      return window.webkitNotifications && window.webkitNotifications.createHTMLNotification;
-    }
+    return _browser.notifications && _browser.notifications.create;
   }
 
   that._getBackgroundPage = function (){
-    if ( browser == CHROME ) {
-      return chrome.extension.getBackgroundPage();
-    } else {
-      return root;
-    }
+    return _browser.extension.getBackgroundPage();
+  }
+
+  that.getConstants = function (){
+    return root.constants;
   }
 
   root.utils = that;

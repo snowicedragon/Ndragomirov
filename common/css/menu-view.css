@@ -1,50 +1,8 @@
-.icon {
-    background-size: cover;
-    background-repeat: no-repeat;
-}
-
-.big-icon {
-    width: 31px;
-    height: 22px;
-}
-
-.small-icon {
-    width: 24px;
-    height: 18px;
-}
-
-.icon.heart-icon {
-    background-image: url(img/heart.png);
-}
-
-.icon.help-icon {
-    background-image: url(img/help.png);
-}
-
-.icon.joystick-icon {
-    background-image: url(img/joystick.png);
-}
-
-.icon.star-icon {
-    background-image: url(img/star.png);
-}
-
-.icon.refresh-icon {
-    background-image: url(img/refresh.png);
-}
-
-.icon.settings-icon {
-    background-image: url(img/settings.png);
-}
-
-.icon.search-icon {
-    background-image: url(img/search.png);
-}
-
 .menu-btn {
     cursor: pointer;
     padding: 10px 0px;
     opacity: 0.9;
+    text-align: center;
     -webkit-transition: background 100ms linear;
     -moz-transition: background 100ms linear;
 }
@@ -59,17 +17,18 @@
     background: rgb(75, 40, 140);
 }
 
-.menu-btn .icon {
-    margin-left: 4px;
+.menu-btn img {
+    vertical-align: middle;
+    height: 20px;
+    width: 24px;
 }
 
 .top-menu {
     position: fixed;
     top: 0;
-    z-index: 1;
+    z-index: 9999;
     background: rgb(18, 18, 18);
     left: 0;
-    opacity: 0.9;
     height: 30px;
     right: 0;
     width: 440px;
@@ -77,54 +36,53 @@
 }
 
 #search-menu {
-    /*left: 39px;*/
     display: block;
 }
 
-#search {
-    cursor: pointer;
-    display: inline-block;
-    position: relative;
-    margin-left: 10px;
-    margin-top: 6px;
-}
-
-#top-menu .top-menu-btn {
+.top-menu-btn {
     display: inline-block;
     cursor: pointer;
     float: left;
-    margin-top: 5px;
+    margin-top: 6px;
     margin-left: 5px;
-    margin-right: 5px;
+}
+
+#search img {
+    width: 18px;
+    height: 18px;
+}
+
+#refresh-btn img {
+    width: 18px;
+    height: 17px;
 }
 
 #filter-bar, #search-bar {
-    display: inline-block;
+    display: inline-table;
     float: left;
     position: relative;
-    margin-top: 3px;
     margin-left: 8px;
+    line-height: 30px;
+    vertical-align: middle;
 }
 
-input[type="text"] {
-    outline: none;
+.top-menu input[type="text"] {
     border: 1px solid black;
     background-color: rgb(30, 30, 30);
     color: rgb(221, 221, 221);
     box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05), inset 0 1px 0 rgba(0, 0, 0, 0.25);
     -webkit-box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05), inset 0 1px 0 rgba(0, 0, 0, 0.25);
     -moz-box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05), inset 0 1px 0 rgba(0, 0, 0, 0.25);
-    text-indent: 5px;
 }
 
 #filter {
     width: 150px;
 }
 
-#logout-btn, #login-btn {
+#login-btn {
     float: right;
     margin-right: 10px;
-    margin-top: 3px;
+    margin-top: 4px;
 }
 
 #context-menu {
@@ -133,6 +91,7 @@ input[type="text"] {
     border-radius: 3px;
     z-index: 10;
     display: none;
+    overflow: hidden;
 }
 
 #context-menu .context-row {
